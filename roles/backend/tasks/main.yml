@@ -1,16 +1,12 @@
-- name: Disable NodeJS default Version
-  ansible.builtin.shell: dnf module disable nodejs -y
-
-- name: Enable NodeJS 18 Version
-  ansible.builtin.shell: dnf module enable nodejs:18 -y
+- name: Install NodeJS
+  ansible.builtin.shell: curl -sL https://rpm.nodesource.com/setup_1ts.x | bash
 
 - name: Install NodeJS
   ansible.builtin.dnf:
     name: nodejs
-    state: present
 
 - name: Copy Backend Service File
-  ansible.builtin.template:
+  ansible.builtin.copy:
     src: backend.service
     dest: /etc/systemd/system/backend.service
 
@@ -18,13 +14,21 @@
   ansible.builtin.user:
     name: expense
 
-- name: Import Common Role - App Pre-requisites
-  ansible.builtin.import_role:
-    name: common
-    tasks_from: app-prereq
-  vars:
-    app_dir: /app
-    component: backend
+- name: Cleanup Old Content
+  ansible.builtin.file:
+    path: /app
+    state: absent
+
+- name: Create App Directory
+  ansible.builtin.file:
+    path: /app
+    state: directory
+
+- name: Download Backend Code And Extract It
+  ansible.builtin.unarchive:
+    src: https://expense-artifacts.s3.amazonaws.com/backend.zip
+    dest: /app
+    remote_src: yes
 
 - name: Download NodeJS Dependencies
   ansible.builtin.shell: npm install
@@ -37,7 +41,7 @@
     state: present
 
 - name: Load Schema
-  ansible.builtin.shell: mysql -h {{ lookup('amazon.aws.aws_ssm', 'backend.{{env}}.DB_HOST', region='us-east-1' ) }} -u{{ lookup('amazon.aws.aws_ssm', 'backend.{{env}}.DB_USER', region='us-east-1' ) }} -p{{ lookup('amazon.aws.aws_ssm', 'backend.{{env}}.DB_PASS', region='us-east-1' ) }} < /app/schema/backend.sql
+  ansible.builtin.shell: mysql -h mysql.waleapagun.online -uroot -pExpenseApp@1 < /app/schema/backend.sql
 
 - name: Start Backend Service
   ansible.builtin.systemd:
