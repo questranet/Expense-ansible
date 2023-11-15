@@ -1,0 +1,10 @@
+- name: Create App Directory
+  ansible.builtin.file:
+    path: {{ app_loc}}
+    state: directory
+
+- name: Download Backend Code And Extract It
+  ansible.builtin.unarchive:
+    src: https://expense-artifacts.s3.amazonaws.com/{{ component }}.zip
+    dest: /app
+    remote_src: yes
